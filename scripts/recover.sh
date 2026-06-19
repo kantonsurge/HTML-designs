@@ -36,9 +36,13 @@ while read -r slug; do
   find "$REPO/templates" -maxdepth 2 -type d -name "$name" 2>/dev/null | grep -q . && continue
   tags=$(echo "$html" | grep -oE 'tag/[a-z0-9-]+' | sed 's#tag/##' | sort -u | tr '\n' '|' | sed 's/|$//')
   cat="misc"; for c in $CATS; do echo "$tags" | tr '|' '\n' | grep -qx "$c" && { cat="$c"; break; }; done
-  zip="$WORK/$name.zip"
-  curl -s -L -A "$UA" --max-time 120 -o "$zip" "https://templatemo.com$dl"
-  if ! unzip -tq "$zip" >/dev/null 2>&1; then echo "[$i/$total] BADZIP $name" | tee -a "$LOG"; rm -f "$zip"; fail=$((fail+1)); continue; fi
+  zip="$WORK/$name.zip"; zok=0
+  for za in 1 2 3 4 5; do
+    curl -s -L -A "$UA" --max-time 180 -o "$zip" "https://templatemo.com$dl"
+    if unzip -tq "$zip" >/dev/null 2>&1; then zok=1; break; fi
+    rm -f "$zip"; sleep $((za*5))
+  done
+  if [ "$zok" -ne 1 ]; then echo "[$i/$total] BADZIP $name" | tee -a "$LOG"; fail=$((fail+1)); continue; fi
   mkdir -p "$REPO/templates/$cat"; unzip -q -o "$zip" -d "$REPO/templates/$cat/"; rm -f "$zip"
   echo "$name,$cat,$tags,$page" >> "$MAN"; got=$((got+1))
   echo "[$i/$total] RECOVERED $name -> $cat" | tee -a "$LOG"
